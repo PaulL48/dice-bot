@@ -1,3 +1,7 @@
+mod roll_command;
+mod roll;
+mod common_parse;
+
 use anyhow::anyhow;
 use serenity::async_trait;
 use serenity::model::channel::Message;
@@ -5,17 +9,30 @@ use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tracing::{error, info};
+use roll_command::RollCommand;
 
 struct Bot;
 
 #[async_trait]
 impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.content == "!hello" {
-            if let Err(e) = msg.channel_id.say(&ctx.http, "world!").await {
-                error!("Error sending message: {:?}", e);
-            }
+        let text = &msg.content;
+
+        // The text following a roll command
+        // is a list of expressions separated by + and -
+        // prefixed optionally by a batch number and postfixed optionally by a drop number
+        // Eg. /roll [<batch>] <expression> [<drop>]
+        if let Ok(roll_command) = RollCommand::try_from(msg.content.as_str()) {
+
         }
+
+
+
+        // if msg.content == "!hello" {
+        //     if let Err(e) = msg.channel_id.say(&ctx.http, "world!").await {
+        //         error!("Error sending message: {:?}", e);
+        //     }
+        // }
     }
 
     async fn ready(&self, _: Context, ready: Ready) {
