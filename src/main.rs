@@ -20,24 +20,39 @@ impl EventHandler for Bot {
 
         const PREFIX: &str = "!roll ";
         if let Some(text) = text.strip_prefix(PREFIX) {
-            let output = match parse_roll_command(text) {
+            let (output, rolls) = match parse_roll_command(text) {
                 Ok((remainder, result)) => {
                     if remainder.trim().is_empty() {
-                        result.evaluate()
+                        (result.evaluate(), result.dice_count())
                     } else {
-                        format!("Error, unexpected character: {}", remainder)
+                        (format!("Error, unexpected character: {}", remainder), 0)
                     }
                 }
-                Err(nom::Err::Error(err)) => format!("Error parsing roll command: {}", err.input),
-                Err(nom::Err::Incomplete(_)) => {
-                    "Error, failed to parse roll command: Incomplete expression".to_string()
+                Err(nom::Err::Error(err)) => {
+                    (format!("Error parsing roll command: {}", err.input), 0)
                 }
+                Err(nom::Err::Incomplete(_)) => (
+                    "Error, failed to parse roll command: Incomplete expression".to_string(),
+                    0,
+                ),
                 Err(nom::Err::Failure(err)) => {
-                    format!("Failure to parse roll command: {}", err.input)
+                    (format!("Failure to parse roll command: {}", err.input), 0)
                 }
             };
 
-            if let Err(e) = msg.channel_id.say(&ctx.http, output).await {
+            let mut message = if let Some(nickname) = msg.author_nick(&ctx.http).await {
+                format!("{} requested `[{}]`", nickname, text)
+            } else {
+                format!("{} requested `[{}]`", msg.author.name, text)
+            };
+
+            if rolls > 1 {
+                message.push('\n');
+            }
+
+            message.push_str(&output);
+
+            if let Err(e) = msg.channel_id.say(&ctx.http, message).await {
                 error!("Error sending message: {:?}", e)
             }
         }

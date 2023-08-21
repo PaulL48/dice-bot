@@ -61,6 +61,13 @@ impl RollCommand {
 
         batch_strings.iter().join("\n")
     }
+
+    pub fn dice_count(&self) -> usize {
+        self.expressions
+            .iter()
+            .filter(|(_, expr)| matches!(expr, RollExpression::Roll(_)))
+            .count()
+    }
 }
 
 fn parse_roll_expression_sequence(input: &str) -> IResult<&str, Vec<(Operator, RollExpression)>> {
