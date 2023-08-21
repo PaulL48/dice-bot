@@ -1,13 +1,6 @@
-
-
 use nom::{
-    branch::alt,
-    character::complete::char,
-    character::complete::{multispace1},
-    combinator::{opt},
-    multi::{many0},
-    sequence::tuple,
-    IResult,
+    branch::alt, character::complete::char, character::complete::multispace1, combinator::opt,
+    multi::many0, sequence::tuple, IResult,
 };
 
 use crate::{

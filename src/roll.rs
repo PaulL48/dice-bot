@@ -1,6 +1,4 @@
-use std::{
-    fmt::{Display, Formatter},
-};
+use std::fmt::{Display, Formatter};
 
 use itertools::Itertools;
 use nom::{
@@ -8,7 +6,7 @@ use nom::{
     sequence::tuple, IResult,
 };
 
-use crate::common_parse::{p_u128};
+use crate::common_parse::p_u128;
 
 use rand::distributions::{Distribution, Uniform};
 
