@@ -41,13 +41,15 @@ impl EventHandler for Bot {
             };
 
             let mut message = if let Some(nickname) = msg.author_nick(&ctx.http).await {
-                format!("{} requested `[{}]`", nickname, text)
+                format!("{} requested `[{}]` ", nickname, text)
             } else {
-                format!("{} requested `[{}]`", msg.author.name, text)
+                format!("{} requested `[{}]` ", msg.author.name, text)
             };
 
             if rolls > 1 {
-                message.push('\n');
+                message.push_str("Rolls:");
+            } else {
+                message.push_str("Roll:");
             }
 
             message.push_str(&output);
