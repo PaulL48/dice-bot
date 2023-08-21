@@ -3,7 +3,7 @@ mod roll;
 mod roll_command;
 
 use anyhow::anyhow;
-use roll_command::{parse_roll_command, RollCommand};
+use roll_command::{parse_roll_command};
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;

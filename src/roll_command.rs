@@ -1,13 +1,11 @@
-use std::convert::TryFrom;
+
 
 use nom::{
     branch::alt,
-    bytes::complete::tag,
-    bytes::complete::tag_no_case,
     character::complete::char,
-    character::complete::{digit0, digit1, multispace1},
-    combinator::{map_res, opt},
-    multi::{many0, many1},
+    character::complete::{multispace1},
+    combinator::{opt},
+    multi::{many0},
     sequence::tuple,
     IResult,
 };
