@@ -4,83 +4,98 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     bytes::complete::tag_no_case,
+    character::complete::char,
+    character::complete::{digit0, digit1, multispace1},
+    combinator::{map_res, opt},
+    multi::{many0, many1},
     sequence::tuple,
-    IResult, combinator::{map_res, opt}, character::complete::{digit0, digit1}
+    IResult,
 };
 
-// The roll command should support multiple dice over addition and subtraction
-// ex. !roll 3d8 + 2d6 + 4 + 6
-// multiplication is not supported
-// batches are supported
-// ex. !roll 2 d20 + 10 - 2 -> Rolls d20 + 10 - 2 twice
-// drop lowest n is supported
-// 
+use crate::{
+    common_parse::{p_u128, ws},
+    roll::{parse_roll_expression, RollExpression},
+};
 
-struct Roll {
-    dice_count: u128,
-    faces: u128,
+use itertools::Itertools;
+
+#[derive(Debug, Clone, Copy)]
+enum Operator {
+    Add,
+    Subtract,
 }
 
+fn parse_operator(input: &str) -> IResult<&str, Operator> {
+    let (input, operator) = alt((char('+'), char('-')))(input)?;
 
+    if operator == '-' {
+        Ok((input, Operator::Subtract))
+    } else {
+        Ok((input, Operator::Add))
+    }
+}
+
+#[derive(Debug)]
 pub struct RollCommand {
     batches: u128,
-    expression: Vec<()>,
-    drop: u128
+    expressions: Vec<(Operator, RollExpression)>,
 }
 
-// pub struct Roll {
-//     dice_count: i128,
-//     faces: u128,
-// }
+impl RollCommand {
+    pub fn evaluate(&self) -> String {
+        let mut batch_strings = Vec::new();
 
-// fn p_roll(s: &str) -> IResult<&str, Roll> {
+        for _ in 0..self.batches {
+            let batch_results = self
+                .expressions
+                .iter()
+                .copied()
+                .map(|(op, expr)| (op, expr, expr.evaluate()))
+                .collect::<Vec<_>>();
+            let mut total = 0;
+            let mut batch_string = "`".to_string();
+            for (operator, expression, result) in batch_results {
+                match operator {
+                    Operator::Add => total += result.contribution(),
+                    Operator::Subtract => total -= result.contribution(),
+                }
 
-// }
+                if matches!(expression, RollExpression::Roll(_)) {
+                    batch_string.push_str(&result.to_string());
+                }
+            }
+            batch_string.push_str(&format!("` Result: `{}`", total));
+            batch_strings.push(batch_string);
+        }
 
-fn p_u128(s: &str) -> IResult<&str, u128> {
-    map_res(digit1, str::parse)(s)
-}
-
-fn roll_components(s: &str) -> IResult<&str, (Option<u128>, &str, u128)> {
-    tuple((
-        opt(p_u128),
-        tag_no_case("d"),
-        p_u128
-    ))(s)
-}
-
-impl TryFrom<&str> for RollCommand {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut full_roll = tuple((
-            p_u128,
-            tag_no_case("d"),
-            p_u128
-        ));
-
-        let mut default_1_roll = tuple((
-            tag_no_case("d"),
-            p_u128
-        ));
-
-        // syntax: [<batch>] <expression> [<drop>]
-        // separators: <batch><ws><expr> +/- <expr> +/- ...<ws><drop>
-
-        // If the first character after the first word is not a + or a - then it is the batch prefix
-        let mut iter = value.split_whitespace();
-
-        // technically this is also valid
-        // !roll 2 d20+1+2
-
-        // I think this makes it a lookahead 1 language since the batch prefix is only
-        // know not to be a constant because it is not followed by an arithmetic operator
-
-        // what would the lexical elements of the expression be?
-        // integer
-        // dice specifier: [n]dm
-        // +/-
-
-        todo!()
+        batch_strings.iter().join("\n")
     }
+}
+
+fn parse_roll_expression_sequence(input: &str) -> IResult<&str, Vec<(Operator, RollExpression)>> {
+    // The first roll expression must not have an operator
+    let (input, first_roll_expression) = ws(parse_roll_expression)(input)?;
+
+    let (input, mut rest_roll_expression) =
+        many0(tuple((ws(parse_operator), ws(parse_roll_expression))))(input)?;
+
+    // Implicitly the first roll expression is an add
+    rest_roll_expression.insert(0, (Operator::Add, first_roll_expression));
+
+    Ok((input, rest_roll_expression))
+}
+
+pub fn parse_roll_command(input: &str) -> IResult<&str, RollCommand> {
+    let (input, (batch, roll_expressions)) = tuple((
+        ws(opt(tuple((p_u128, multispace1)))),
+        parse_roll_expression_sequence,
+    ))(input)?;
+
+    Ok((
+        input,
+        RollCommand {
+            batches: batch.unwrap_or((1, "")).0,
+            expressions: roll_expressions,
+        },
+    ))
 }

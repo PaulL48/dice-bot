@@ -1,15 +1,15 @@
-mod roll_command;
-mod roll;
 mod common_parse;
+mod roll;
+mod roll_command;
 
 use anyhow::anyhow;
+use roll_command::{parse_roll_command, RollCommand};
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tracing::{error, info};
-use roll_command::RollCommand;
 
 struct Bot;
 
@@ -18,21 +18,29 @@ impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message) {
         let text = &msg.content;
 
-        // The text following a roll command
-        // is a list of expressions separated by + and -
-        // prefixed optionally by a batch number and postfixed optionally by a drop number
-        // Eg. /roll [<batch>] <expression> [<drop>]
-        if let Ok(roll_command) = RollCommand::try_from(msg.content.as_str()) {
+        const PREFIX: &str = "!roll ";
+        if let Some(text) = text.strip_prefix(PREFIX) {
+            let output = match parse_roll_command(text) {
+                Ok((remainder, result)) => {
+                    if remainder.trim().is_empty() {
+                        result.evaluate()
+                    } else {
+                        format!("Error, unexpected character: {}", remainder)
+                    }
+                }
+                Err(nom::Err::Error(err)) => format!("Error parsing roll command: {}", err.input),
+                Err(nom::Err::Incomplete(_)) => {
+                    "Error, failed to parse roll command: Incomplete expression".to_string()
+                }
+                Err(nom::Err::Failure(err)) => {
+                    format!("Failure to parse roll command: {}", err.input)
+                }
+            };
 
+            if let Err(e) = msg.channel_id.say(&ctx.http, output).await {
+                error!("Error sending message: {:?}", e)
+            }
         }
-
-
-
-        // if msg.content == "!hello" {
-        //     if let Err(e) = msg.channel_id.say(&ctx.http, "world!").await {
-        //         error!("Error sending message: {:?}", e);
-        //     }
-        // }
     }
 
     async fn ready(&self, _: Context, ready: Ready) {
