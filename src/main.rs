@@ -56,7 +56,7 @@ impl EventHandler for Bot {
 
             message.push_str(&output);
 
-            if message.len() < DISCORD_MESSAGE_LENGTH_MAX {
+            if message.len() > DISCORD_MESSAGE_LENGTH_MAX {
                 message = format!("Error, output length exceeds {} characters", DISCORD_MESSAGE_LENGTH_MAX);
             }
 
