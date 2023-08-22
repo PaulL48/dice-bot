@@ -20,10 +20,10 @@ impl EventHandler for Bot {
 
         const PREFIX: &str = "!roll ";
         if let Some(text) = text.strip_prefix(PREFIX) {
-            let (output, rolls) = match parse_roll_command(text) {
+            let (output, batches) = match parse_roll_command(text) {
                 Ok((remainder, result)) => {
                     if remainder.trim().is_empty() {
-                        (result.evaluate(), result.dice_count())
+                        (result.evaluate(), result.batch_count())
                     } else {
                         (format!("Error, unexpected character: {}", remainder), 0)
                     }
@@ -46,10 +46,10 @@ impl EventHandler for Bot {
                 format!("{} requested `[{}]` ", msg.author.name, text)
             };
 
-            if rolls > 1 {
-                message.push_str("Rolls:");
+            if batches > 1 {
+                message.push_str("Rolls:\n");
             } else {
-                message.push_str("Roll:");
+                message.push_str("Roll: ");
             }
 
             message.push_str(&output);
