@@ -13,6 +13,8 @@ use tracing::{error, info};
 
 struct Bot;
 
+const DISCORD_MESSAGE_LENGTH_MAX: usize = 2000;
+
 #[async_trait]
 impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -53,6 +55,10 @@ impl EventHandler for Bot {
             }
 
             message.push_str(&output);
+
+            if message.len() < DISCORD_MESSAGE_LENGTH_MAX {
+                message = format!("Error, output length exceeds {} characters", DISCORD_MESSAGE_LENGTH_MAX);
+            }
 
             if let Err(e) = msg.channel_id.say(&ctx.http, message).await {
                 error!("Error sending message: {:?}", e)
