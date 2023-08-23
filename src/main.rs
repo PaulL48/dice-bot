@@ -14,7 +14,7 @@ use tracing::{error, info};
 struct Bot;
 
 const DISCORD_MESSAGE_LENGTH_MAX: usize = 2000;
-const PREFIXES: [&str; 2] = ["!roll ", "!r "];
+const PREFIXES: [&str; 3] = ["!roll ", "!r ", "!plsrollformedicechan "];
 
 async fn process_roll_command(command: &str, ctx: &Context, msg: &Message) {
     let (output, batches) = match parse_roll_command(command) {
