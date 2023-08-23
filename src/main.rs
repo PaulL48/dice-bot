@@ -14,54 +14,58 @@ use tracing::{error, info};
 struct Bot;
 
 const DISCORD_MESSAGE_LENGTH_MAX: usize = 2000;
+const PREFIXES: [&str; 2] = ["!roll ", "!r "];
+
+async fn process_roll_command(command: &str, ctx: &Context, msg: &Message) {
+    let (output, batches) = match parse_roll_command(command) {
+        Ok((remainder, result)) => {
+            if remainder.trim().is_empty() {
+                (result.evaluate(), result.batch_count())
+            } else {
+                (format!("Error, unexpected character: {}", remainder), 0)
+            }
+        }
+        Err(nom::Err::Error(err)) => (format!("Error parsing roll command: {}", err.input), 0),
+        Err(nom::Err::Incomplete(_)) => (
+            "Error, failed to parse roll command: Incomplete expression".to_string(),
+            0,
+        ),
+        Err(nom::Err::Failure(err)) => (format!("Failure to parse roll command: {}", err.input), 0),
+    };
+
+    let mut message = if let Some(nickname) = msg.author_nick(&ctx.http).await {
+        format!("{} requested `[{}]` ", nickname, command)
+    } else {
+        format!("{} requested `[{}]` ", msg.author.name, command)
+    };
+
+    if batches > 1 {
+        message.push_str("Rolls:\n");
+    } else {
+        message.push_str("Roll: ");
+    }
+
+    message.push_str(&output);
+
+    if message.len() > DISCORD_MESSAGE_LENGTH_MAX {
+        message = format!(
+            "Error, output length exceeds {} characters",
+            DISCORD_MESSAGE_LENGTH_MAX
+        );
+    }
+
+    if let Err(e) = msg.channel_id.say(&ctx.http, message).await {
+        error!("Error sending message: {:?}", e)
+    }
+}
 
 #[async_trait]
 impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message) {
-        let text = &msg.content;
-
-        const PREFIX: &str = "!roll ";
-        if let Some(text) = text.strip_prefix(PREFIX) {
-            let (output, batches) = match parse_roll_command(text) {
-                Ok((remainder, result)) => {
-                    if remainder.trim().is_empty() {
-                        (result.evaluate(), result.batch_count())
-                    } else {
-                        (format!("Error, unexpected character: {}", remainder), 0)
-                    }
-                }
-                Err(nom::Err::Error(err)) => {
-                    (format!("Error parsing roll command: {}", err.input), 0)
-                }
-                Err(nom::Err::Incomplete(_)) => (
-                    "Error, failed to parse roll command: Incomplete expression".to_string(),
-                    0,
-                ),
-                Err(nom::Err::Failure(err)) => {
-                    (format!("Failure to parse roll command: {}", err.input), 0)
-                }
-            };
-
-            let mut message = if let Some(nickname) = msg.author_nick(&ctx.http).await {
-                format!("{} requested `[{}]` ", nickname, text)
-            } else {
-                format!("{} requested `[{}]` ", msg.author.name, text)
-            };
-
-            if batches > 1 {
-                message.push_str("Rolls:\n");
-            } else {
-                message.push_str("Roll: ");
-            }
-
-            message.push_str(&output);
-
-            if message.len() > DISCORD_MESSAGE_LENGTH_MAX {
-                message = format!("Error, output length exceeds {} characters", DISCORD_MESSAGE_LENGTH_MAX);
-            }
-
-            if let Err(e) = msg.channel_id.say(&ctx.http, message).await {
-                error!("Error sending message: {:?}", e)
+        for prefix in PREFIXES {
+            if let Some(text) = msg.content.strip_prefix(prefix) {
+                process_roll_command(text, &ctx, &msg).await;
+                return;
             }
         }
     }
