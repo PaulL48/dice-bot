@@ -1,18 +1,20 @@
 mod common_parse;
 mod roll;
 mod roll_command;
+mod secrets;
 
-use anyhow::anyhow;
+use log::{error, warn};
 use roll_command::parse_roll_command;
+use secrets::Secrets;
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use shuttle_runtime::SecretStore;
-use tracing::{error, info};
+use simplelog::*;
 
 struct Bot;
 
+const SECRETS_PATH: &str = "./Secrets.toml";
 const DISCORD_MESSAGE_LENGTH_MAX: usize = 2000;
 const PREFIXES: [&str; 3] = ["!roll ", "!r ", "!plsrollformedicechan "];
 
@@ -71,28 +73,48 @@ impl EventHandler for Bot {
     }
 
     async fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected!", ready.user.name);
+        warn!("{} is connected!", ready.user.name);
     }
 }
 
-#[shuttle_runtime::main]
-async fn serenity(
-    #[shuttle_runtime::Secrets] secret_store: SecretStore,
-) -> shuttle_serenity::ShuttleSerenity {
+fn read_discord_token(secrets_path: &str) -> Result<Secrets, String> {
+    let secrets_contents = std::fs::read_to_string(secrets_path)
+        .map_err(|e| format!("Could not read secrets: {}", e))?;
+
+    let secrets = toml::from_str(&secrets_contents)
+        .map_err(|e| format!("Could not read secrets: {}", e))?;
+
+    Ok(secrets)
+}
+
+#[tokio::main]
+async fn main() {
+    TermLogger::init(
+        LevelFilter::Warn,
+        Config::default(),
+        TerminalMode::Stdout,
+        ColorChoice::Auto
+    )
+    .expect("Could not initialize logging");
+
     // Get the discord token set in `Secrets.toml`
-    let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
-        token
-    } else {
-        return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
+    let token = match read_discord_token(SECRETS_PATH) {
+        Ok(secrets) => secrets.discord_token().to_string(),
+        Err(err) => {
+            println!("{}", err);
+            return;
+        },
     };
 
     // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
-    let client = Client::builder(&token, intents)
+    let mut client = Client::builder(&token, intents)
         .event_handler(Bot)
         .await
         .expect("Err creating client");
 
-    Ok(client.into())
+    if let Err(err) = client.start().await {
+        println!("Could not start discord bot: {}", err);
+    }
 }
