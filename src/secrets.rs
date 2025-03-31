@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize)]
 pub struct Secrets {
-    #[serde(rename="DISCORD_TOKEN")]
-    discord_token: String
+    #[serde(rename = "DISCORD_TOKEN")]
+    discord_token: String,
 }
 
 impl Secrets {

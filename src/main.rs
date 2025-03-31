@@ -81,8 +81,8 @@ fn read_discord_token(secrets_path: &str) -> Result<Secrets, String> {
     let secrets_contents = std::fs::read_to_string(secrets_path)
         .map_err(|e| format!("Could not read secrets: {}", e))?;
 
-    let secrets = toml::from_str(&secrets_contents)
-        .map_err(|e| format!("Could not read secrets: {}", e))?;
+    let secrets =
+        toml::from_str(&secrets_contents).map_err(|e| format!("Could not read secrets: {}", e))?;
 
     Ok(secrets)
 }
@@ -93,7 +93,7 @@ async fn main() {
         LevelFilter::Warn,
         Config::default(),
         TerminalMode::Stdout,
-        ColorChoice::Auto
+        ColorChoice::Auto,
     )
     .expect("Could not initialize logging");
 
@@ -103,7 +103,7 @@ async fn main() {
         Err(err) => {
             println!("{}", err);
             return;
-        },
+        }
     };
 
     // Set gateway intents, which decides what events the bot will be notified about
