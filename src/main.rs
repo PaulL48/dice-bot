@@ -97,8 +97,13 @@ async fn main() {
     )
     .expect("Could not initialize logging");
 
+    let executable_directory = std::env::current_exe().expect("Could not get dicechan path");
+
+    let mut secrets_path = executable_directory.parent().unwrap().to_path_buf();
+    secrets_path.push(SECRETS_PATH);
+
     // Get the discord token set in `Secrets.toml`
-    let token = match read_discord_token(SECRETS_PATH) {
+    let token = match read_discord_token(secrets_path.to_str().unwrap()) {
         Ok(secrets) => secrets.discord_token().to_string(),
         Err(err) => {
             println!("{}", err);
